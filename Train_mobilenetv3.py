@@ -1,11 +1,10 @@
 from torch_lib.Dataset import *
-from torch_lib.Model import Model, OrientationLoss
-
+from torch_lib.Model_mobilenetv3 import Model, OrientationLoss
 
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torchvision.models import vgg, efficientnet_b0
+from torchvision.models import mobilenet_v3_small  # Import the MobileNet model
 from torch.utils import data
 
 
@@ -30,8 +29,9 @@ def main():
 
     generator = data.DataLoader(dataset, **params)
 
-    my_vgg = vgg.vgg19_bn(pretrained=True)
-    model = Model(features=my_vgg.features).cuda()
+    # Initialize MobileNet
+    my_mobilenet = mobilenet_v3_small(pretrained=True)
+    model = Model(features=my_mobilenet.features).cuda()
     opt_SGD = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
     conf_loss_func = nn.CrossEntropyLoss().cuda()
     dim_loss_func = nn.MSELoss().cuda()

@@ -57,9 +57,14 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = self.features(x) # 512 x 7 x 7
+        # print(x)
+        # print(x.shape)
         x = x.view(-1, 512 * 7 * 7)
+        # print(x.shape)
         orientation = self.orientation(x)
+        # print(orientation.shape)
         orientation = orientation.view(-1, self.bins, 2)
+        # print(orientation.shape)
         orientation = F.normalize(orientation, dim=2)
         confidence = self.confidence(x)
         dimension = self.dimension(x)

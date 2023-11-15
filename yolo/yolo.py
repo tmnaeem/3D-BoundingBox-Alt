@@ -15,23 +15,25 @@ class cv_Yolo:
         self.confidence = confidence
         self.threshold = threshold
 
-        labels_path = os.path.sep.join([yolo_path, "coco.names"])
-        self.labels = open(labels_path).read().split("\n")
+        labels_path = os.path.sep.join([yolo_path, "coco.names"]) # get classess available
+        self.labels = open(labels_path).read().split("\n") # split classes name into list
 
-        np.random.seed(42)
+        # # # start randomize color # # #
+        np.random.seed(42) 
         self.colors = np.random.randint(0,255, size=(len(self.labels), 3), dtype="uint8")
+        # # # end randomize color # # #
 
-        weights_path = os.path.sep.join([yolo_path, "yolov3.weights"])
-        cfg_path = os.path.sep.join([yolo_path, "yolov3.cfg"])
+        weights_path = os.path.sep.join([yolo_path, "yolov3.weights"]) # get weights
+        cfg_path = os.path.sep.join([yolo_path, "yolov3.cfg"]) # get yolo model
 
-        self.net = cv2.dnn.readNetFromDarknet(cfg_path, weights_path)
+        self.net = cv2.dnn.readNetFromDarknet(cfg_path, weights_path) # Reads a network model stored in Darknet model files.
 
     def detect(self, image):
         # assert image is opencv
-        (H,W) = image.shape[:2]
+        (H,W) = image.shape[:2] 
 
         ln = self.net.getLayerNames()
-        ln = [ln[i[0] - 1] for i in self.net.getUnconnectedOutLayers()]
+        ln = [ln[i - 1] for i in self.net.getUnconnectedOutLayers()]
 
         # prepare input
         blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (416, 416), swapRB=True, crop=False)
