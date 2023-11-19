@@ -15,7 +15,7 @@ def get_calibration_cam_to_image(cab_f):
 
     file_not_found(cab_f)
 
-def get_P(cab_f):
+def get_P_bak(cab_f):
     for line in open(cab_f):
         if 'P_rect_02' in line:
             cam_P = line.strip().split(' ')
@@ -26,6 +26,13 @@ def get_P(cab_f):
 
     # try other type of file
     return get_calibration_cam_to_image
+def get_P(cab_f):
+    line = "P_rect_02: 7.188560e+02 0.000000e+00 6.071928e+02 4.538225e+01 0.000000e+00 7.188560e+02 1.852157e+02 -1.130887e-01 0.000000e+00 0.000000e+00 1.000000e+00 3.779761e-03"
+    cam_P = line.strip().split(' ')
+    cam_P = np.asarray([float(cam_P) for cam_P in cam_P[1:]])
+    return_matrix = np.zeros((3,4))
+    return_matrix = cam_P.reshape((3,4))
+    return return_matrix
 
 def get_R0(cab_f):
     for line in open(cab_f):
