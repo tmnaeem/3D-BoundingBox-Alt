@@ -11,6 +11,11 @@ from library.File import *
 
 from .ClassAverages import ClassAverages
 
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+process = transforms.Compose([
+    transforms.ToTensor(),
+    normalize
+])
 # TODO: clean up where this is
 def generate_bins(bins):
     angle_bins = np.zeros(bins)
@@ -252,52 +257,56 @@ is to keep this abstract enough so it can be used in combination with YOLO
 """
 class DetectedObject:
     def __init__(self, img, detection_class, box_2d, proj_matrix, label=None):
-
-        if isinstance(proj_matrix, str): # filename
+        if isinstance(proj_matrix, str):  # filename
             proj_matrix = get_P(proj_matrix)
-            # proj_matrix = get_calibration_cam_to_image(proj_matrix)
 
         self.proj_matrix = proj_matrix
-        self.theta_ray = self.calc_theta_ray(img, box_2d, proj_matrix)
+        self.theta_ray = self.calc_theta_ray(img.shape[1], box_2d, proj_matrix)
         self.img = self.format_img(img, box_2d)
         self.label = label
         self.detection_class = detection_class
 
-    def calc_theta_ray(self, img, box_2d, proj_matrix):
-        width = img.shape[1]
+    @staticmethod
+    def calc_theta_ray(width, box_2d, proj_matrix):
         fovx = 2 * np.arctan(width / (2 * proj_matrix[0][0]))
         center = (box_2d[1][0] + box_2d[0][0]) / 2
         dx = center - (width / 2)
+        angle = np.arctan((2 * abs(dx) * np.tan(fovx / 2)) / width)
+        return np.copysign(angle, dx)
 
-        mult = 1
-        if dx < 0:
-            mult = -1
-        dx = abs(dx)
-        angle = np.arctan( (2*dx*np.tan(fovx/2)) / width )
-        angle = angle * mult
+    @staticmethod
+    def vectorized_calc_theta_ray(width, boxes_2d, proj_matrix):
+        # Calculate the field of view in the x-dimension
+        fovx = 2 * np.arctan(width / (2 * proj_matrix[0, 0]))
 
-        return angle
+        # Calculate the center of each box
+        centers = (boxes_2d[:, 0] + boxes_2d[:, 2]) / 2
 
-    def format_img(self, img, box_2d):
+        # Calculate the displacement from the image center
+        dx = centers - (width / 2)
 
-        # Should this happen? or does normalize take care of it. YOLO doesnt like
-        # img=img.astype(np.float) / 255
+        # Calculate the angles
+        angles = np.arctan((2 * np.abs(dx) * np.tan(fovx / 2)) / width)
 
-        # torch transforms
-        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                std=[0.229, 0.224, 0.225])
-        process = transforms.Compose ([
-            transforms.ToTensor(),
-            normalize
-        ])
+        # Apply sign to each angle based on dx
+        angles = np.copysign(angles, dx)
 
-        # crop image
-        pt1 = box_2d[0]
-        pt2 = box_2d[1]
+        return angles
+
+    @staticmethod
+    def format_img(img, box_2d):
+        pt1, pt2 = box_2d
         crop = img[pt1[1]:pt2[1]+1, pt1[0]:pt2[0]+1]
-        crop = cv2.resize(src = crop, dsize=(224, 224), interpolation=cv2.INTER_CUBIC)
-
-        # recolor, reformat
-        batch = process(crop)
-
-        return batch
+        crop = cv2.resize(crop, (224, 224), interpolation=cv2.INTER_CUBIC)
+        return process(crop)
+    
+    @staticmethod
+    def batch_format_imgs(img, boxes_2d):
+        crops = []
+        for box_2d in boxes_2d:
+            pt1 = (box_2d[0], box_2d[1])
+            pt2 = (box_2d[2], box_2d[3])
+            crop = img[pt1[1]:pt2[1]+1, pt1[0]:pt2[0]+1]
+            crop = cv2.resize(crop, (224, 224), interpolation=cv2.INTER_CUBIC)
+            crops.append(process(crop))
+        return torch.stack(crops)  # Stack all the processed crops into a single tensor
